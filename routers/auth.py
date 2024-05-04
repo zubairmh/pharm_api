@@ -1,40 +1,70 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
-import uuid
-router=APIRouter(prefix="/auth")
+from datetime import timedelta
+from typing_extensions import Annotated
+from fastapi import Depends, HTTPException, status, APIRouter
+from fastapi.security import OAuth2PasswordRequestForm
+from core.meds import FindPharmacy
+from models.auth import Token
+from models.auth import UserCreate
+from core.auth import create_user
+from core.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    User,
+    authenticate_user,
+    create_access_token,
+    get_current_active_user,
+)
 
-# Login Models
-class Location(BaseModel):
-    long: float
-    lat: float
+router = APIRouter(prefix="/auth")
 
-class LoginModel(BaseModel):
-    user: str
-    password: str
-    location: Location
+@router.post("/signup")
+async def create_user_account(user: UserCreate):
+    created_user = await create_user(user.username, user.password, user.email, user.full_name)
+    if not created_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Username already exists",
+        )
+    return created_user
 
-class RegisterModel(BaseModel):
-    user: str
-    password: str
-
-class LoginResponse(BaseModel):
-    auth_token: str
-
-class RegisterResponse(BaseModel):
-    status: bool
-
-
-# Login Routes
-@router.post("/login")
-async def login(data: LoginModel) -> LoginResponse:
-    return LoginResponse(
-        auth_token=str(uuid.uuid4()),
+@router.post("/token")
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+) -> Token:
+    user = await authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
     )
+    return Token(access_token=access_token, token_type="bearer")
+
+@router.get("/pharmacy")
+async def pharmacy(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    pharmacy=await FindPharmacy(current_user.username)
+    if pharmacy:
+        return pharmacy
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No Pharmacy Found",
+        )
+
+@router.get("/users/me/", response_model=User)
+async def read_users_me(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    return current_user
 
 
-@router.post("/register")
-async def register(data: RegisterModel) -> RegisterResponse:
-    return RegisterResponse(
-        status=True
-    )
-
+@router.get("/users/me/items/")
+async def read_own_items(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+):
+    return [{"item_id": "Foo", "owner": current_user.username}]

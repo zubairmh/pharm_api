@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from core.database import BuyMeds, CreateMeds, RemoveMeds, SearchMeds, UpdateMeds
+from core.meds import BuyMeds, CreateMeds, ListMeds, RemoveMeds, SearchMeds, UpdateMeds
 from models.cart import BuyRequest, RemoveRequest, UserCart
 
 router=APIRouter(prefix="/cart")
@@ -13,6 +13,11 @@ async def price(cart: UserCart):
 @router.post("/buy")
 async def buy(cart: BuyRequest):
     out=await BuyMeds(cart.pharmacy_name, cart.items)
+    return out
+
+@router.post("/list")
+async def list_meds(pharmacy_name: str):
+    out=await ListMeds(pharmacy_name)
     return out
 
 @router.post("/update")
