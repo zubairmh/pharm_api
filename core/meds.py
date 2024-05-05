@@ -1,14 +1,26 @@
 from core.database import pharmacy
-from models.cart import CartItem
+from models.cart import AddItem, CartItem
 
 def pharmacy_helper(p) -> dict:
+    print(p)
     return {
         "id": str(p["_id"]),
         "fullname": p["name"],
         "items": p["items"],
         "owner": p["owner"],
+        "lat": p["lat"],
+        "long": p["long"],
     }
 
+
+async def FindPharmacy(owner: str) -> dict:
+    query = {"owner": owner}
+    results = await pharmacy.find_one(query)
+    return pharmacy_helper(results)
+
+async def AllPharmacies() -> list[dict]:
+    results = pharmacy.find()
+    return [pharmacy_helper(p) async for p in results]
 
 async def SearchMeds(meds: list[CartItem]) -> dict:
     query = {
@@ -34,11 +46,6 @@ async def ListMeds(pharmacy_name: str) -> dict:
     results = await pharmacy.find_one(query)
     return pharmacy_helper(results)
 
-async def FindPharmacy(owner: str) -> dict:
-    query = {"owner": owner}
-    results = await pharmacy.find_one(query)
-    return pharmacy_helper(results)
-
 async def BuyMeds(pharmacy_name: str, meds: list[CartItem]) -> dict:
     results = await SearchMeds(meds)
     results = results["results"]
@@ -55,7 +62,7 @@ async def BuyMeds(pharmacy_name: str, meds: list[CartItem]) -> dict:
     return {"success": False}
 
 
-async def UpdateMeds(pharmacy_name, meds: list[CartItem]) -> dict:
+async def UpdateMeds(pharmacy_name, meds: list[AddItem]) -> dict:
     query = {"name": pharmacy_name}
     update = {"$set": {"items.$[elem].quantity": m.quantity for m in meds}}
     out = await pharmacy.update_one(
@@ -66,7 +73,7 @@ async def UpdateMeds(pharmacy_name, meds: list[CartItem]) -> dict:
     return {"success": out.modified_count > 0}
 
 
-async def CreateMeds(pharmacy_name, meds: list[CartItem]) -> dict:
+async def CreateMeds(pharmacy_name, meds: list[AddItem]) -> dict:
     query = {
         "name": pharmacy_name,
         "items.name": {"$nin": [m.name for m in meds]}
@@ -75,7 +82,7 @@ async def CreateMeds(pharmacy_name, meds: list[CartItem]) -> dict:
         "$push": {
             "items": {
                 "$each": [
-                    {"name": m.name, "quantity": m.quantity}
+                    {"name": m.name, "quantity": m.quantity, "price": m.price}
                     for m in meds
                 ]
             }
