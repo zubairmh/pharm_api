@@ -24,9 +24,9 @@ def generate_pharmacy():
     pharmacy = {
         "name": fake.company() + " Pharmacy",
         "items": [],
-        "owner": fake.name(),
-        "lat": random.uniform(28, 32),
-        "long": random.uniform(74, 78),
+        "owner": fake.name().lower(),
+        "lat": random.uniform(29, 31),
+        "long": random.uniform(75, 77),
         "phone": fake_phone_number(fake),
         "rating": random.randint(3, 5)  # Adding random rating between 1 and 5
     }
@@ -39,7 +39,7 @@ def generate_pharmacy():
                 break
         chosen_medicines.add(medicine_name)
         medicine = {
-            "name": medicine_name,
+            "name": medicine_name.lower(),
             "quantity": random.randint(1, 1000),
             "price": random.randint(1, 100)
         }

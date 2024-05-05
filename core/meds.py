@@ -10,6 +10,8 @@ def pharmacy_helper(p) -> dict:
         "owner": p["owner"],
         "lat": p["lat"],
         "long": p["long"],
+        "phone": p["phone"],
+        "rating": p["rating"],
     }
 
 
